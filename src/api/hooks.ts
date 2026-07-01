@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from './client';
-import type { PlatformStats, Finding, AISystem, AttackPath, Snapshot } from './client';
+import type {
+  PlatformStats, Finding, AISystem, AttackPath, Snapshot,
+  EuAiActCompliance, NistRmfCompliance, Webhook,
+} from './client';
 
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(() => {
+    setLoading(true);
+    fetcher()
+      .then(d => { setData(d); setError(null); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,7 +30,7 @@ function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch };
 }
 
 export const useStats = () => useQuery<PlatformStats>(api.stats);
@@ -30,5 +42,8 @@ export const useSystemAttackPaths = (id: string) => useQuery<AttackPath[]>(() =>
 export const useSnapshots = (systemId: string) => useQuery<Snapshot[]>(() => api.snapshots(systemId), [systemId]);
 export const useRagFindings = () => useQuery<Finding[]>(api.ragFindings);
 export const useSupplyChainFindings = () => useQuery<Finding[]>(api.supplyChainFindings);
+export const useEuAiAct = (systemId: string) => useQuery<EuAiActCompliance>(() => api.euAiAct(systemId), [systemId]);
+export const useNistRmf = (systemId: string) => useQuery<NistRmfCompliance>(() => api.nistRmf(systemId), [systemId]);
+export const useWebhooks = () => useQuery<Webhook[]>(api.webhooks);
 
-export type { PlatformStats, Finding, AISystem, AttackPath, Snapshot };
+export type { PlatformStats, Finding, AISystem, AttackPath, Snapshot, EuAiActCompliance, NistRmfCompliance, Webhook };

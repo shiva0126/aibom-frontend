@@ -8,13 +8,37 @@ import { useFindings } from '../api/hooks';
 const severities = ['All', 'Critical', 'High', 'Medium', 'Low'];
 const statuses = ['All', 'open', 'resolved'];
 
+function CompliancePill({ label, color, bg, border }: { label: string; color: string; bg: string; border: string }) {
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: 9, fontWeight: 700,
+      padding: '1px 5px', borderRadius: 4,
+      background: bg, color, border: `1px solid ${border}`,
+      whiteSpace: 'nowrap', fontFamily: 'monospace',
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function OwaspPill({ id }: { id: string }) {
+  return <CompliancePill label={id} color="var(--orange)" bg="var(--orange-muted)" border="var(--orange-border)" />;
+}
+
+function AtlasPill({ id }: { id: string }) {
+  return <CompliancePill label={id} color="var(--purple)" bg="var(--purple-muted)" border="var(--purple-border)" />;
+}
+
+function NistPill({ fn }: { fn: string }) {
+  return <CompliancePill label={fn} color="var(--cyan)" bg="var(--cyan-muted)" border="var(--cyan-border)" />;
+}
+
 export default function Findings() {
   const [search, setSearch] = useState('');
   const [sev, setSev] = useState('All');
   const [status, setStatus] = useState('All');
   const { data: liveFindings } = useFindings();
 
-  // Normalise live API findings to the same shape used by the table
   const findings = liveFindings
     ? liveFindings.map(f => ({
         id: f.id.slice(0, 8).toUpperCase(),
@@ -26,8 +50,11 @@ export default function Findings() {
         age: new Date(f.created_at).toLocaleDateString(),
         cve: null as string | null,
         description: f.description,
+        owasp: f.owasp_llm_id ?? null,
+        atlas: f.atlas_technique ?? null,
+        nist: f.nist_rmf_function ?? null,
       }))
-    : allFindings;
+    : allFindings.map(f => ({ ...f, owasp: null as string | null, atlas: null as string | null, nist: null as string | null }));
 
   const filtered = findings.filter(f =>
     (search === '' || f.title.toLowerCase().includes(search.toLowerCase()) || f.system.toLowerCase().includes(search.toLowerCase())) &&
@@ -36,7 +63,9 @@ export default function Findings() {
   );
 
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-  findings.forEach(f => { if (f.severity in counts) (counts as any)[f.severity]++; });
+  findings.forEach(f => { if (f.severity in counts) (counts as Record<string, number>)[f.severity]++; });
+
+  const hasComplianceTags = liveFindings?.some(f => f.owasp_llm_id || f.atlas_technique || f.nist_rmf_function);
 
   return (
     <PageShell
@@ -51,14 +80,14 @@ export default function Findings() {
     >
       {/* Severity summary */}
       <div className="grid grid-cols-4 gap-3 mb-5">
-        {Object.entries(counts).map(([sev, count]) => {
+        {Object.entries(counts).map(([severity, count]) => {
           const colorMap: Record<string, string> = { Critical: 'var(--danger)', High: 'var(--orange)', Medium: 'var(--warning)', Low: 'var(--cyan)' };
           return (
-            <div key={sev} className="rounded-xl p-4 cursor-pointer transition-all"
+            <div key={severity} className="rounded-xl p-4 cursor-pointer transition-all"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-              onClick={() => setSev(sev === sev ? sev : 'All')}>
-              <div className="text-2xl font-bold mb-0.5" style={{ color: colorMap[sev], letterSpacing: '-0.5px' }}>{count}</div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{sev}</div>
+              onClick={() => setSev(sev === severity ? 'All' : severity)}>
+              <div className="text-2xl font-bold mb-0.5" style={{ color: colorMap[severity], letterSpacing: '-0.5px' }}>{count}</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{severity}</div>
             </div>
           );
         })}
@@ -102,7 +131,10 @@ export default function Findings() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
-              {['ID', 'Finding', 'System', 'Category', 'Severity', 'Status', 'Age', 'CVE', ''].map(h => (
+              {['ID', 'Finding', 'System', 'Category', 'Severity', 'Status', 'Age',
+                ...(hasComplianceTags ? ['OWASP', 'ATLAS', 'NIST'] : ['CVE']),
+                '',
+              ].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{h}</th>
               ))}
             </tr>
@@ -115,27 +147,72 @@ export default function Findings() {
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <td className="px-4 py-3"><span className="text-[11px] mono font-medium" style={{ color: 'var(--accent)' }}>{f.id}</span></td>
-                <td className="px-4 py-3 text-xs font-medium" style={{ color: 'var(--text-primary)', maxWidth: 260 }}>{f.title}</td>
+                <td className="px-4 py-3">
+                  <span className="text-[11px] mono font-medium" style={{ color: 'var(--accent)' }}>{f.id}</span>
+                </td>
+                <td className="px-4 py-3 text-xs font-medium" style={{ color: 'var(--text-primary)', maxWidth: 220 }}>
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.title}</div>
+                </td>
                 <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{f.system}</td>
                 <td className="px-4 py-3">
-                  <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{f.category}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    {f.category}
+                  </span>
                 </td>
                 <td className="px-4 py-3"><Badge label={f.severity} /></td>
                 <td className="px-4 py-3"><Badge label={f.status} /></td>
                 <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{f.age}</td>
-                <td className="px-4 py-3">
-                  {f.cve ? <span className="text-[10px] mono" style={{ color: 'var(--accent)' }}>{f.cve}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                </td>
+                {hasComplianceTags ? (
+                  <>
+                    <td className="px-4 py-3">
+                      {f.owasp ? <OwaspPill id={f.owasp} /> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {f.atlas ? <AtlasPill id={f.atlas} /> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {f.nist ? <NistPill fn={f.nist} /> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
+                  </>
+                ) : (
+                  <td className="px-4 py-3">
+                    {f.cve ? <span className="text-[10px] mono" style={{ color: 'var(--accent)' }}>{f.cve}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </td>
+                )}
                 <td className="px-4 py-3"><ChevronRight size={14} style={{ color: 'var(--text-muted)' }} /></td>
               </tr>
             ))}
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="py-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No findings match the current filters.</div>
+          <div className="py-12 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+            No findings match the current filters.
+          </div>
         )}
       </div>
+
+      {/* Compliance taxonomy legend */}
+      {hasComplianceTags && (
+        <div style={{
+          marginTop: 12, padding: '10px 14px', borderRadius: 10,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 16,
+        }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Taxonomy:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--orange)', display: 'inline-block' }} />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>OWASP LLM Top 10</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--purple)', display: 'inline-block' }} />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>MITRE ATLAS</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--cyan)', display: 'inline-block' }} />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>NIST AI RMF function</span>
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 }

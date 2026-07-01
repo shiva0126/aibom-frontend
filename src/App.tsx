@@ -13,6 +13,8 @@ import AttackPaths from './pages/AttackPaths';
 import Integrations from './pages/Integrations';
 import Reports     from './pages/Reports';
 import Settings    from './pages/Settings';
+import Compliance  from './pages/Compliance';
+import Webhooks    from './pages/Webhooks';
 
 export default function App() {
   return (
@@ -56,6 +58,8 @@ export default function App() {
                 <Route path="/integrations" element={<Integrations />} />
                 <Route path="/reports"      element={<Reports />}      />
                 <Route path="/settings"     element={<Settings />}     />
+                <Route path="/compliance"   element={<Compliance />}   />
+                <Route path="/webhooks"     element={<Webhooks />}     />
               </Routes>
             </main>
           </div>

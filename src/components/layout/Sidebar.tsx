@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Server, FileText, GitBranch, Bot,
   Network, AlertTriangle, Route, Plug, BarChart2,
-  Settings, Shield, TrendingUp, ChevronDown, type LucideIcon,
+  Settings, Shield, TrendingUp, ChevronDown, Scale, Webhook,
+  type LucideIcon,
 } from 'lucide-react';
 
 const groups: { label?: string; items: { to: string; icon: LucideIcon; label: string }[] }[] = [
@@ -20,6 +21,7 @@ const groups: { label?: string; items: { to: string; icon: LucideIcon; label: st
       { to: '/supply-chain', icon: GitBranch,     label: 'Supply Chain' },
       { to: '/findings',     icon: AlertTriangle, label: 'Findings'     },
       { to: '/attack-paths', icon: Route,         label: 'Attack Paths' },
+      { to: '/compliance',   icon: Scale,         label: 'Compliance'   },
     ],
   },
   {
@@ -33,6 +35,7 @@ const groups: { label?: string; items: { to: string; icon: LucideIcon; label: st
     label: 'Platform',
     items: [
       { to: '/integrations', icon: Plug,      label: 'Integrations' },
+      { to: '/webhooks',     icon: Webhook,   label: 'Webhooks'     },
       { to: '/reports',      icon: BarChart2, label: 'Reports'      },
     ],
   },
