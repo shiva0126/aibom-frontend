@@ -1,5 +1,6 @@
 import { Cpu, Brain, Bot, Wrench, ShieldAlert, FileStack } from 'lucide-react';
 import { overviewStats } from '../../data/mock';
+import { useStats } from '../../api/hooks';
 
 const icons  = [Cpu, Brain, Bot, Wrench, ShieldAlert, FileStack];
 const colors = [
@@ -12,9 +13,22 @@ const colors = [
 ];
 
 export default function StatsRow() {
+  const { data: live } = useStats();
+
+  const stats = live
+    ? [
+        { label: 'AI Systems',       value: live.ai_systems,        delta: '',   trend: 'up',   icon: 'systems'   },
+        { label: 'Observations',     value: live.total_observations, delta: '',   trend: 'up',   icon: 'models'    },
+        { label: 'Open Findings',    value: live.open_findings,      delta: '',   trend: 'down', icon: 'findings'  },
+        { label: 'Critical',         value: live.critical_findings,  delta: '',   trend: 'down', icon: 'findings'  },
+        { label: 'Attack Paths',     value: live.attack_paths,       delta: '',   trend: 'down', icon: 'agents'    },
+        { label: 'Live Platform',    value: 1,                       delta: '✓',  trend: 'up',   icon: 'snapshots' },
+      ]
+    : overviewStats;
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12 }}>
-      {overviewStats.map((s, i) => {
+      {stats.map((s, i) => {
         const Icon  = icons[i];
         const color = colors[i];
         const isDown = s.trend === 'down';

@@ -3,28 +3,45 @@ import { Search, SlidersHorizontal, Download, ChevronRight } from 'lucide-react'
 import PageShell from '../components/layout/PageShell';
 import Badge from '../components/shared/Badge';
 import { allFindings } from '../data/mock';
+import { useFindings } from '../api/hooks';
 
 const severities = ['All', 'Critical', 'High', 'Medium', 'Low'];
-const statuses = ['All', 'New', 'In Progress', 'Open', 'Resolved'];
+const statuses = ['All', 'open', 'resolved'];
 
 export default function Findings() {
   const [search, setSearch] = useState('');
   const [sev, setSev] = useState('All');
   const [status, setStatus] = useState('All');
+  const { data: liveFindings } = useFindings();
 
-  const filtered = allFindings.filter(f =>
+  // Normalise live API findings to the same shape used by the table
+  const findings = liveFindings
+    ? liveFindings.map(f => ({
+        id: f.id.slice(0, 8).toUpperCase(),
+        title: f.title,
+        system: f.system_id.slice(0, 8),
+        category: f.finding_type,
+        severity: f.severity.charAt(0).toUpperCase() + f.severity.slice(1),
+        status: f.status,
+        age: new Date(f.created_at).toLocaleDateString(),
+        cve: null as string | null,
+        description: f.description,
+      }))
+    : allFindings;
+
+  const filtered = findings.filter(f =>
     (search === '' || f.title.toLowerCase().includes(search.toLowerCase()) || f.system.toLowerCase().includes(search.toLowerCase())) &&
-    (sev === 'All' || f.severity === sev) &&
+    (sev === 'All' || f.severity.toLowerCase() === sev.toLowerCase()) &&
     (status === 'All' || f.status === status)
   );
 
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-  allFindings.forEach(f => { if (f.severity in counts) (counts as any)[f.severity]++; });
+  findings.forEach(f => { if (f.severity in counts) (counts as any)[f.severity]++; });
 
   return (
     <PageShell
       title="Findings"
-      subtitle={`${allFindings.length} findings across ${new Set(allFindings.map(f => f.system)).size} systems`}
+      subtitle={`${findings.length} findings${liveFindings ? ' (live)' : ' (demo)'}`}
       actions={
         <button className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
