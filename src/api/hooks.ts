@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from './client';
 import type {
   PlatformStats, Finding, AISystem, AttackPath, Snapshot,
-  EuAiActCompliance, NistRmfCompliance, Webhook,
+  EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance,
 } from './client';
 
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
@@ -44,6 +44,7 @@ export const useRagFindings = () => useQuery<Finding[]>(api.ragFindings);
 export const useSupplyChainFindings = () => useQuery<Finding[]>(api.supplyChainFindings);
 export const useEuAiAct = (systemId: string) => useQuery<EuAiActCompliance>(() => api.euAiAct(systemId), [systemId]);
 export const useNistRmf = (systemId: string) => useQuery<NistRmfCompliance>(() => api.nistRmf(systemId), [systemId]);
+export const useGlobalCompliance = (systemId: string) => useQuery<GlobalCompliance>(() => api.globalCompliance(systemId), [systemId]);
 export const useWebhooks = () => useQuery<Webhook[]>(api.webhooks);
 
-export type { PlatformStats, Finding, AISystem, AttackPath, Snapshot, EuAiActCompliance, NistRmfCompliance, Webhook };
+export type { PlatformStats, Finding, AISystem, AttackPath, Snapshot, EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance };

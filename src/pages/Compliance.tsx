@@ -1,271 +1,507 @@
 import { useState } from 'react';
 import {
-  Scale, CheckCircle2, XCircle, Clock, AlertTriangle,
-  ShieldCheck, ChevronDown, Info,
+  CheckCircle2, XCircle, Clock,
+  ShieldCheck, ChevronDown, Info, Globe,
 } from 'lucide-react';
 import PageShell from '../components/layout/PageShell';
-import { useSystems, useEuAiAct, useNistRmf } from '../api/hooks';
-import type { EuAiActRequirement, NistRmfFunctionDetail } from '../api/client';
+import { useSystems, useGlobalCompliance, useEuAiAct, useNistRmf } from '../api/hooks';
+import type { FrameworkResult, ComplianceRequirement, NistRmfFunctionDetail } from '../api/client';
 
-/* ─── Ring Score ──────────────────────────────────────────── */
-function RingScore({ score, size = 140 }: { score: number; size?: number }) {
+/* ──────────────────────────────────────────────────────────────
+   Country flags (emoji — works cross-platform)
+────────────────────────────────────────────────────────────── */
+const FLAGS: Record<string, string> = {
+  'india-dpdpa':        '🇮🇳',
+  'us-eo-14110':        '🇺🇸',
+  'uk-ai-safety':       '🇬🇧',
+  'canada-aida':        '🇨🇦',
+  'china-cac':          '🇨🇳',
+  'brazil-lgpd':        '🇧🇷',
+  'singapore-maigf':   '🇸🇬',
+  'australia-ai-ethics':'🇦🇺',
+  'japan-aiga':         '🇯🇵',
+  'uae-ai':             '🇦🇪',
+  'iso-42001':          '🌐',
+  'eu-ai-act':          '🇪🇺',
+};
+
+const REGIONS = ['All', 'Europe', 'Americas', 'Asia-Pacific', 'Middle East', 'Global Standards'];
+
+/* ──────────────────────────────────────────────────────────────
+   Mini ring (for country grid cards)
+────────────────────────────────────────────────────────────── */
+function MiniRing({ score, size = 44 }: { score: number; size?: number }) {
+  const stroke = 5;
+  const r = (size - stroke * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = circ * Math.min(score / 100, 1);
+  const color = score >= 70 ? '#1ec76a' : score >= 45 ? '#f4a21e' : '#f03d3d';
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.6s ease' }}
+      />
+    </svg>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Big ring (for detail panel)
+────────────────────────────────────────────────────────────── */
+function BigRing({ score, size = 130 }: { score: number; size?: number }) {
   const stroke = 10;
   const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * Math.min(score / 100, 1);
-  const color = score >= 75 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
-  const label = score >= 75 ? 'Compliant' : score >= 45 ? 'Partial' : 'At Risk';
-  const glow = score >= 75 ? 'rgba(30,199,106,0.25)' : score >= 45 ? 'rgba(244,162,30,0.25)' : 'rgba(240,61,61,0.25)';
-
+  const color = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
+  const label = score >= 70 ? 'Compliant' : score >= 45 ? 'Partial' : 'At Risk';
   return (
     <div style={{ position: 'relative', width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <defs>
-          <filter id="ring-glow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-        {/* track */}
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-        {/* progress */}
         <circle
           cx={size / 2} cy={size / 2} r={r}
           fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
-          filter="url(#ring-glow)"
-          style={{ transition: 'stroke-dasharray 1s cubic-bezier(0.4,0,0.2,1)' }}
+          style={{ transition: 'stroke-dasharray 0.8s ease' }}
         />
       </svg>
-      {/* inner glow */}
-      <div style={{
-        position: 'absolute',
-        inset: stroke + r / 2,
-        borderRadius: '50%',
-        background: glow,
-        filter: 'blur(8px)',
-        pointerEvents: 'none',
-      }} />
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}>
-        <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-1.5px', lineHeight: 1 }}>
+        <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-1.5px', lineHeight: 1 }}>
           {Math.round(score)}%
         </span>
-        <span style={{ fontSize: 11, color, fontWeight: 700, marginTop: 3, letterSpacing: '0.02em' }}>{label}</span>
+        <span style={{ fontSize: 10, color, fontWeight: 700, marginTop: 3 }}>{label}</span>
       </div>
     </div>
   );
 }
 
-/* ─── Requirement card ────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   Requirement card
+────────────────────────────────────────────────────────────── */
 type ReqStatus = 'satisfied' | 'partial' | 'gap';
 
-function ReqCard({ req, status }: { req: EuAiActRequirement; status: ReqStatus }) {
-  const cfg = {
-    satisfied: { icon: CheckCircle2, color: 'var(--success)', bg: 'var(--success-muted)', border: 'var(--success-border)', label: 'Met' },
-    partial:   { icon: Clock,        color: 'var(--warning)', bg: 'var(--warning-muted)', border: 'var(--warning-border)', label: 'Partial' },
-    gap:       { icon: XCircle,      color: 'var(--danger)',  bg: 'var(--danger-muted)',  border: 'var(--danger-border)',  label: 'Gap' },
-  }[status];
+const REQ_CFG = {
+  satisfied: { Icon: CheckCircle2, color: 'var(--success)', bg: 'var(--success-muted)', border: 'var(--success-border)', label: 'Met' },
+  partial:   { Icon: Clock,        color: 'var(--warning)', bg: 'var(--warning-muted)', border: 'var(--warning-border)', label: 'Partial' },
+  gap:       { Icon: XCircle,      color: 'var(--danger)',  bg: 'var(--danger-muted)',  border: 'var(--danger-border)',  label: 'Gap' },
+};
 
-  const Icon = cfg.icon;
-
+function ReqCard({ req, status }: { req: ComplianceRequirement; status: ReqStatus }) {
+  const c = REQ_CFG[status];
+  const Icon = c.Icon;
   return (
     <div style={{
-      padding: '12px 14px',
-      borderRadius: 10,
-      background: cfg.bg,
-      border: `1px solid ${cfg.border}`,
-      display: 'flex',
-      gap: 10,
-      alignItems: 'flex-start',
+      padding: '10px 12px', borderRadius: 10,
+      background: c.bg, border: `1px solid ${c.border}`,
+      display: 'flex', gap: 8, alignItems: 'flex-start',
     }}>
-      <Icon size={14} style={{ color: cfg.color, flexShrink: 0, marginTop: 1 }} />
+      <Icon size={13} style={{ color: c.color, flexShrink: 0, marginTop: 1 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color, fontFamily: 'monospace' }}>{req.id}</span>
-          <span style={{ fontSize: 9, color: cfg.color, opacity: 0.8 }}>{req.article}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: cfg.color,
-            background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 3 }}>
-            {cfg.label}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: c.color, fontFamily: 'monospace' }}>{req.id}</span>
+          <span style={{ fontSize: 9, color: c.color, opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{req.article}</span>
+          <span style={{
+            fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 3,
+            background: 'rgba(255,255,255,0.1)', color: c.color, flexShrink: 0,
+          }}>{c.label}</span>
         </div>
-        <div style={{ fontSize: 11, color: cfg.color, opacity: 0.85, lineHeight: 1.4 }}>{req.requirement}</div>
+        <div style={{ fontSize: 10, color: c.color, opacity: 0.85, lineHeight: 1.4 }}>{req.requirement}</div>
       </div>
     </div>
   );
 }
 
-/* ─── NIST Function Card ──────────────────────────────────── */
-const nistColors: Record<string, { color: string; muted: string; border: string }> = {
-  SATISFACTORY:    { color: 'var(--success)', muted: 'var(--success-muted)', border: 'var(--success-border)' },
-  RISK_IDENTIFIED: { color: 'var(--danger)',  muted: 'var(--danger-muted)',  border: 'var(--danger-border)'  },
-  INCOMPLETE:      { color: 'var(--warning)', muted: 'var(--warning-muted)', border: 'var(--warning-border)' },
-};
-
-const nistGradients: Record<string, string> = {
-  GOVERN:  'linear-gradient(135deg, rgba(91,127,255,0.12) 0%, rgba(91,127,255,0.04) 100%)',
-  MAP:     'linear-gradient(135deg, rgba(169,124,248,0.12) 0%, rgba(169,124,248,0.04) 100%)',
-  MEASURE: 'linear-gradient(135deg, rgba(29,212,244,0.12) 0%, rgba(29,212,244,0.04) 100%)',
-  MANAGE:  'linear-gradient(135deg, rgba(30,199,106,0.12) 0%, rgba(30,199,106,0.04) 100%)',
-};
-
-const nistAccents: Record<string, string> = {
-  GOVERN:  'var(--accent)',
-  MAP:     'var(--purple)',
-  MEASURE: 'var(--cyan)',
-  MANAGE:  'var(--success)',
-};
-
-function NistCard({ fn, detail }: { fn: string; detail: NistRmfFunctionDetail }) {
-  const sc = nistColors[detail.status] ?? nistColors.SATISFACTORY;
-  const accent = nistAccents[fn] ?? 'var(--accent)';
-  const evidence = detail.evidence as Record<string, unknown>;
-
-  const metricPairs: [string, string][] = [];
-  if (fn === 'GOVERN' && typeof evidence.policy_approval_findings === 'number') {
-    metricPairs.push(['Policy violations', String(evidence.policy_approval_findings)]);
-  }
-  if (fn === 'MAP') {
-    if (typeof evidence.component_count === 'number') metricPairs.push(['Components', String(evidence.component_count)]);
-    if (typeof evidence.completeness_score === 'number')
-      metricPairs.push(['Completeness', `${Math.round((evidence.completeness_score as number) * 100)}%`]);
-  }
-  if (fn === 'MEASURE') {
-    const fc = evidence.finding_counts as Record<string, number> | undefined;
-    if (fc) {
-      metricPairs.push(['Critical', String(fc.critical ?? 0)]);
-      metricPairs.push(['High', String(fc.high ?? 0)]);
-    }
-  }
-  if (fn === 'MANAGE' && typeof evidence.stale_evidence_findings === 'number') {
-    metricPairs.push(['Stale signals', String(evidence.stale_evidence_findings)]);
-  }
-
+/* ──────────────────────────────────────────────────────────────
+   Country card (grid)
+────────────────────────────────────────────────────────────── */
+function CountryCard({
+  fw, selected, onClick,
+}: {
+  fw: FrameworkResult;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const flag = FLAGS[fw.framework_id] ?? '🌍';
+  const scoreColor = fw.compliance_score >= 70 ? 'var(--success)' : fw.compliance_score >= 45 ? 'var(--warning)' : 'var(--danger)';
   return (
-    <div style={{
-      borderRadius: 14,
-      border: '1px solid var(--border)',
-      background: nistGradients[fn],
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* header bar */}
-      <div style={{
-        padding: '14px 16px 12px',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-elevated)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div
+      onClick={onClick}
+      style={{
+        borderRadius: 14, border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+        background: selected ? 'var(--bg-selected)' : 'var(--bg-card)',
+        padding: '14px 16px', cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        boxShadow: selected ? '0 0 0 1px var(--accent-border), 0 4px 16px var(--accent-glow)' : 'none',
+      }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.borderColor = 'var(--border)'; }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>{flag}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {fw.name}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{fw.country}</div>
+        </div>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <MiniRing score={fw.compliance_score} />
           <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: `color-mix(in srgb, ${accent} 20%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
+            position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <ShieldCheck size={13} style={{ color: accent }} />
+            <span style={{ fontSize: 9, fontWeight: 800, color: scoreColor }}>
+              {Math.round(fw.compliance_score)}%
+            </span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{fn}</span>
         </div>
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-          background: sc.muted, color: sc.color, border: `1px solid ${sc.border}`,
-        }}>
-          {detail.status === 'SATISFACTORY' ? 'OK' : detail.status === 'RISK_IDENTIFIED' ? 'Risk' : 'Incomplete'}
-        </span>
       </div>
 
-      <div style={{ padding: '12px 16px', flex: 1 }}>
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10 }}>
-          {detail.description}
-        </p>
-        {metricPairs.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {metricPairs.map(([k, v]) => (
-              <div key={k} style={{
-                padding: '4px 8px', borderRadius: 6,
-                background: 'var(--bg-card)', border: '1px solid var(--border)',
-              }}>
-                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{k} </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>{v}</span>
-              </div>
-            ))}
+      <div style={{ display: 'flex', gap: 5 }}>
+        {[
+          { count: fw.satisfied_count, color: 'var(--success)', label: 'Met' },
+          { count: fw.partial_count,   color: 'var(--warning)', label: '±' },
+          { count: fw.gaps_count,      color: 'var(--danger)',  label: 'Gap' },
+        ].map(s => (
+          <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '3px 0',
+            borderRadius: 5, background: 'var(--bg-elevated)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.count}</div>
+            <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 1 }}>{s.label}</div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
 }
 
-/* ─── Skeleton loader ─────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   Detail panel (expanded framework view)
+────────────────────────────────────────────────────────────── */
+function FrameworkDetail({ fw }: { fw: FrameworkResult }) {
+  const flag = FLAGS[fw.framework_id] ?? '🌍';
+  const allReqs: { req: ComplianceRequirement; status: ReqStatus }[] = [
+    ...fw.satisfied.map(r => ({ req: r, status: 'satisfied' as ReqStatus })),
+    ...fw.partial.map(r => ({ req: r, status: 'partial' as ReqStatus })),
+    ...fw.gaps.map(r => ({ req: r, status: 'gap' as ReqStatus })),
+  ].sort((a, b) => {
+    const num = (id: string) => parseInt(id.replace(/[^0-9]/g, ''), 10) || 0;
+    return num(a.req.id) - num(b.req.id);
+  });
+
+  return (
+    <div style={{
+      borderRadius: 16, border: '1px solid var(--accent-border)',
+      background: 'var(--bg-card)', overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px',
+        background: 'linear-gradient(135deg, var(--accent-muted) 0%, var(--bg-elevated) 100%)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 14,
+      }}>
+        <span style={{ fontSize: 28 }}>{flag}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+            {fw.full_name}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>
+            {fw.authority} · {fw.effective}
+          </div>
+        </div>
+        <BigRing score={fw.compliance_score} />
+      </div>
+
+      {/* Meta bar */}
+      <div style={{
+        padding: '10px 20px',
+        background: 'var(--bg-elevated)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', gap: 24, flexWrap: 'wrap',
+      }}>
+        {[
+          { label: 'Scope', value: fw.scope },
+          { label: 'Penalty', value: fw.penalty },
+        ].map(m => (
+          <div key={m.label} style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{m.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.value}</div>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+          {[
+            { count: fw.satisfied_count, color: 'var(--success)', muted: 'var(--success-muted)', border: 'var(--success-border)', label: 'Met' },
+            { count: fw.partial_count,   color: 'var(--warning)', muted: 'var(--warning-muted)', border: 'var(--warning-border)', label: 'Partial' },
+            { count: fw.gaps_count,      color: 'var(--danger)',  muted: 'var(--danger-muted)',  border: 'var(--danger-border)',  label: 'Gaps' },
+          ].map(s => (
+            <span key={s.label} style={{
+              fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
+              background: s.muted, color: s.color, border: `1px solid ${s.border}`,
+            }}>
+              {s.count} {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Requirements grid */}
+      <div style={{ padding: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {allReqs.map(({ req, status }) => (
+            <ReqCard key={req.id} req={req} status={status} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   NIST RMF Section (reused from existing compliance page)
+────────────────────────────────────────────────────────────── */
+function NistSection({ systemId }: { systemId: string }) {
+  const { data: nist, loading } = useNistRmf(systemId);
+  if (loading) return <div style={{ height: 200, borderRadius: 14, background: 'var(--bg-elevated)', animation: 'shimmer 1.4s infinite', backgroundSize: '200% 100%' }} />;
+  if (!nist) return null;
+
+  const funcColors: Record<string, string> = { GOVERN: 'var(--accent)', MAP: 'var(--purple)', MEASURE: 'var(--cyan)', MANAGE: 'var(--success)' };
+  const statusCfg: Record<string, { color: string; label: string }> = {
+    SATISFACTORY:    { color: 'var(--success)', label: 'OK' },
+    RISK_IDENTIFIED: { color: 'var(--danger)',  label: 'Risk' },
+    INCOMPLETE:      { color: 'var(--warning)', label: 'Incomplete' },
+  };
+
+  return (
+    <div style={{ borderRadius: 16, border: '1px solid var(--border)', background: 'var(--bg-card)', overflow: 'hidden' }}>
+      <div style={{ padding: '13px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <ShieldCheck size={14} style={{ color: 'var(--purple)' }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>NIST AI RMF 1.0</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+          background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
+          Overall: {nist.overall_risk_level}
+        </span>
+      </div>
+      <div style={{ padding: 14, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        {(Object.entries(nist.functions) as [string, NistRmfFunctionDetail][]).map(([fn, detail]) => {
+          const sc = statusCfg[detail.status] ?? statusCfg.SATISFACTORY;
+          const accent = funcColors[fn] ?? 'var(--accent)';
+          return (
+            <div key={fn} style={{ borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-elevated)', overflow: 'hidden' }}>
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{fn}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                  background: `color-mix(in srgb, ${sc.color} 15%, transparent)`,
+                  color: sc.color }}>
+                  {sc.label}
+                </span>
+              </div>
+              <div style={{ padding: '8px 12px' }}>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>{detail.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Global hero score bar
+────────────────────────────────────────────────────────────── */
+function GlobalHero({
+  globalScore,
+  frameworksCount,
+  openFindings,
+  regionScores,
+}: {
+  globalScore: number;
+  frameworksCount: number;
+  openFindings: number;
+  regionScores: Record<string, number>;
+}) {
+  const color = globalScore >= 70 ? 'var(--success)' : globalScore >= 45 ? 'var(--warning)' : 'var(--danger)';
+  return (
+    <div style={{
+      borderRadius: 16, border: '1px solid var(--border)',
+      background: 'linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card) 100%)',
+      padding: '20px 24px', marginBottom: 20,
+      display: 'grid', gridTemplateColumns: 'auto 1px 1fr', gap: 24, alignItems: 'center',
+    }}>
+      {/* Global score */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Globe size={18} style={{ color: 'var(--accent)' }} />
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>Global Compliance Score</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 42, fontWeight: 900, color, letterSpacing: '-2px', lineHeight: 1 }}>
+              {Math.round(globalScore)}
+            </span>
+            <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>/ 100</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            {frameworksCount} frameworks · {openFindings} open finding{openFindings !== 1 ? 's' : ''}
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div style={{ width: 1, height: '100%', background: 'var(--border)' }} />
+
+      {/* Region scores */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+        {Object.entries(regionScores).map(([region, score]) => {
+          const rc = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
+          const barW = Math.min(score, 100);
+          return (
+            <div key={region}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)' }}>{region}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: rc }}>{Math.round(score)}%</span>
+              </div>
+              <div style={{ height: 3, borderRadius: 99, background: 'var(--border)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${barW}%`, background: rc, borderRadius: 99, transition: 'width 0.6s ease' }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Skeleton shimmer
+────────────────────────────────────────────────────────────── */
 function Skeleton({ h = 80 }: { h?: number }) {
   return (
     <div style={{
-      height: h, borderRadius: 10,
+      height: h, borderRadius: 12,
       background: 'linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-hover) 50%, var(--bg-elevated) 75%)',
-      backgroundSize: '200% 100%',
-      animation: 'shimmer 1.4s infinite',
+      backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite',
     }} />
   );
 }
 
-/* ─── Main page ───────────────────────────────────────────── */
-export default function Compliance() {
-  const { data: systems } = useSystems();
-  const [selectedId, setSelectedId] = useState('');
+/* ──────────────────────────────────────────────────────────────
+   EU AI Act Detail (fetched separately for full data)
+────────────────────────────────────────────────────────────── */
+function EuAiActDetail({ systemId }: { systemId: string }) {
+  const { data: eu } = useEuAiAct(systemId);
+  if (!eu) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Loading EU AI Act data…</div>;
 
-  const effectiveId = selectedId || (systems?.[0]?.id ?? '');
-  const skip = !effectiveId;
-
-  const { data: eu, loading: euLoading } = useEuAiAct(skip ? '__skip__' : effectiveId);
-  const { data: nist, loading: nistLoading } = useNistRmf(skip ? '__skip__' : effectiveId);
-
-  const loading = euLoading || nistLoading;
-
-  const allReqs: { req: EuAiActRequirement; status: ReqStatus }[] = [
-    ...(eu?.satisfied ?? []).map(r => ({ req: r, status: 'satisfied' as ReqStatus })),
-    ...(eu?.partial ?? []).map(r => ({ req: r, status: 'partial' as ReqStatus })),
-    ...(eu?.gaps ?? []).map(r => ({ req: r, status: 'gap' as ReqStatus })),
+  const allReqs: { req: ComplianceRequirement; status: ReqStatus }[] = [
+    ...eu.satisfied.map(r => ({ req: r as ComplianceRequirement, status: 'satisfied' as ReqStatus })),
+    ...eu.partial.map(r => ({ req: r as ComplianceRequirement, status: 'partial' as ReqStatus })),
+    ...eu.gaps.map(r => ({ req: r as ComplianceRequirement, status: 'gap' as ReqStatus })),
   ].sort((a, b) => {
     const n = (id: string) => parseInt(id.replace('AIA-', ''), 10);
     return n(a.req.id) - n(b.req.id);
   });
 
-  const overallRiskColor = {
-    CRITICAL: 'var(--danger)',
-    HIGH: 'var(--orange)',
-    MEDIUM: 'var(--warning)',
-    LOW: 'var(--success)',
-  }[nist?.overall_risk_level ?? 'LOW'] ?? 'var(--success)';
+  return (
+    <div style={{ borderRadius: 16, border: '1px solid var(--accent-border)', background: 'var(--bg-card)', overflow: 'hidden' }}>
+      <div style={{
+        padding: '16px 20px',
+        background: 'linear-gradient(135deg, var(--accent-muted) 0%, var(--bg-elevated) 100%)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 14,
+      }}>
+        <span style={{ fontSize: 28 }}>🇪🇺</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>EU AI Act — Article 11 / Annex IV</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>
+            European Commission · Effective August 2024 (phased)
+          </div>
+        </div>
+        <BigRing score={eu.compliance_score} />
+      </div>
+      <div style={{ padding: '10px 20px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10 }}>
+        {[
+          { count: eu.satisfied.length, color: 'var(--success)', muted: 'var(--success-muted)', border: 'var(--success-border)', label: 'Met' },
+          { count: eu.partial.length,   color: 'var(--warning)', muted: 'var(--warning-muted)', border: 'var(--warning-border)', label: 'Partial' },
+          { count: eu.gaps.length,      color: 'var(--danger)',  muted: 'var(--danger-muted)',  border: 'var(--danger-border)',  label: 'Gaps' },
+        ].map(s => (
+          <span key={s.label} style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
+            background: s.muted, color: s.color, border: `1px solid ${s.border}`,
+          }}>{s.count} {s.label}</span>
+        ))}
+        {eu.critical_findings.length > 0 && (
+          <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 6,
+            background: 'var(--danger-muted)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+            ⚠ {eu.critical_findings.length} critical
+          </span>
+        )}
+      </div>
+      <div style={{ padding: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {allReqs.map(({ req, status }) => <ReqCard key={req.id} req={req} status={status} />)}
+        </div>
+      </div>
+      {eu.notes?.length > 0 && (
+        <div style={{ padding: '10px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
+          <Info size={12} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            {eu.notes.join(' · ')}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Main page
+────────────────────────────────────────────────────────────── */
+export default function Compliance() {
+  const { data: systems } = useSystems();
+  const [selectedSystemId, setSelectedSystemId] = useState('');
+  const [regionFilter, setRegionFilter] = useState('All');
+  const [selectedFw, setSelectedFw] = useState<string | null>(null);
+
+  const effectiveId = selectedSystemId || (systems?.[0]?.id ?? '');
+  const skip = !effectiveId;
+
+  const { data: globalData, loading } = useGlobalCompliance(skip ? '__skip__' : effectiveId);
+
+  const frameworks = globalData?.frameworks ?? [];
+  const filtered = regionFilter === 'All'
+    ? frameworks
+    : frameworks.filter(fw => fw.region === regionFilter);
+
+  const selectedFramework = frameworks.find(fw => fw.framework_id === selectedFw) ?? null;
+  const isEu = selectedFw === 'eu-ai-act';
 
   return (
     <PageShell
       title="Compliance"
-      subtitle="EU AI Act Article 11 · NIST AI RMF 1.0"
+      subtitle="Global AI regulatory coverage — 11 frameworks across 10 jurisdictions"
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {systems && systems.length > 0 && (
             <div style={{ position: 'relative' }}>
               <select
                 value={effectiveId}
-                onChange={e => setSelectedId(e.target.value)}
+                onChange={e => setSelectedSystemId(e.target.value)}
                 style={{
-                  appearance: 'none',
-                  padding: '7px 28px 7px 10px',
+                  appearance: 'none', padding: '7px 28px 7px 10px',
                   borderRadius: 8, fontSize: 12, fontWeight: 500,
                   background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                   color: 'var(--text-primary)', cursor: 'pointer', outline: 'none',
                 }}
               >
-                {systems.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                {systems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <ChevronDown size={12} style={{
                 position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
@@ -286,215 +522,97 @@ export default function Compliance() {
         </div>
       ) : (
         <>
-          {/* ── Score summary row ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-            {/* EU AI Act ring card */}
-            <div style={{
-              gridColumn: '1',
-              padding: '20px 24px',
-              borderRadius: 16,
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 12,
-            }}>
-              {loading ? (
-                <div style={{ width: 140, height: 140, borderRadius: '50%', background: 'var(--bg-elevated)', animation: 'shimmer 1.4s infinite', backgroundSize: '200% 100%' }} />
-              ) : (
-                <RingScore score={eu?.compliance_score ?? 0} />
-              )}
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>EU AI Act</div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Article 11 / Annex IV</div>
-              </div>
-            </div>
+          {/* ── Global hero ── */}
+          {loading ? <Skeleton h={120} /> : globalData ? (
+            <GlobalHero
+              globalScore={globalData.global_score}
+              frameworksCount={globalData.frameworks_count}
+              openFindings={globalData.open_findings_count}
+              regionScores={globalData.region_scores}
+            />
+          ) : null}
 
-            {/* Stats */}
-            {loading ? (
-              <>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{ padding: 20, borderRadius: 16, background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                    <Skeleton h={60} />
-                  </div>
-                ))}
-              </>
-            ) : (
-              <>
-                {[
-                  {
-                    label: 'Requirements Met',
-                    value: eu?.satisfied.length ?? 0,
-                    total: (eu?.satisfied.length ?? 0) + (eu?.partial.length ?? 0) + (eu?.gaps.length ?? 0),
-                    color: 'var(--success)',
-                    sub: 'Fully satisfied',
-                  },
-                  {
-                    label: 'Partial Coverage',
-                    value: eu?.partial.length ?? 0,
-                    total: null,
-                    color: 'var(--warning)',
-                    sub: 'Needs evidence',
-                  },
-                  {
-                    label: 'NIST Risk Level',
-                    value: nist?.overall_risk_level ?? '—',
-                    total: null,
-                    color: overallRiskColor,
-                    sub: 'AI RMF overall',
-                  },
-                ].map(c => (
-                  <div key={c.label} style={{
-                    padding: '20px 24px',
-                    borderRadius: 16,
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                  }}>
-                    <div style={{
-                      fontSize: 32, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1,
-                      color: c.color, marginBottom: 6,
-                    }}>
-                      {c.value}
-                      {c.total !== null && (
-                        <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--text-muted)' }}> / {c.total}</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{c.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.sub}</div>
-                  </div>
-                ))}
-              </>
-            )}
+          {/* ── Region filter tabs ── */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {REGIONS.map(r => (
+              <button
+                key={r}
+                onClick={() => setRegionFilter(r)}
+                style={{
+                  padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                  background: regionFilter === r ? 'var(--accent-muted)' : 'var(--bg-card)',
+                  border: `1px solid ${regionFilter === r ? 'var(--accent-border)' : 'var(--border)'}`,
+                  color: regionFilter === r ? 'var(--accent)' : 'var(--text-secondary)',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {r}
+                {r !== 'All' && ` (${frameworks.filter(fw => fw.region === r).length})`}
+              </button>
+            ))}
           </div>
 
-          {/* ── EU AI Act requirements grid ── */}
-          <div style={{
-            borderRadius: 16, border: '1px solid var(--border)',
-            background: 'var(--bg-card)', marginBottom: 24, overflow: 'hidden',
-          }}>
-            <div style={{
-              padding: '14px 20px',
-              borderBottom: '1px solid var(--border)',
-              background: 'var(--bg-elevated)',
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              <Scale size={15} style={{ color: 'var(--accent)' }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>EU AI Act — Article 11 Requirements</span>
-              {eu && (
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                  {[
-                    { label: `${eu.satisfied.length} Met`,     color: 'var(--success)', muted: 'var(--success-muted)', border: 'var(--success-border)' },
-                    { label: `${eu.partial.length} Partial`,   color: 'var(--warning)', muted: 'var(--warning-muted)', border: 'var(--warning-border)' },
-                    { label: `${eu.gaps.length} Gaps`,         color: 'var(--danger)',  muted: 'var(--danger-muted)',  border: 'var(--danger-border)'  },
-                  ].map(s => (
-                    <span key={s.label} style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5,
-                      background: s.muted, color: s.color, border: `1px solid ${s.border}`,
-                    }}>{s.label}</span>
-                  ))}
-                </div>
-              )}
+          {/* ── Country grid ── */}
+          {loading ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} h={110} />)}
             </div>
-
-            <div style={{ padding: 16 }}>
-              {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} h={70} />)}
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {allReqs.map(({ req, status }) => (
-                    <ReqCard key={req.id} req={req} status={status} />
-                  ))}
-                </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+              {/* EU AI Act special card — links to existing detailed endpoint */}
+              {(regionFilter === 'All' || regionFilter === 'Europe') && (
+                <CountryCard
+                  fw={{
+                    framework_id: 'eu-ai-act',
+                    name: 'EU AI Act',
+                    full_name: 'EU Artificial Intelligence Act',
+                    authority: 'European Commission',
+                    country: 'European Union',
+                    region: 'Europe',
+                    effective: 'August 2024',
+                    scope: 'AI systems placed or put into service in the EU',
+                    penalty: 'Up to €35M or 7% of global turnover',
+                    compliance_score: globalData ? (
+                      frameworks.find(f => f.framework_id === 'eu-ai-act')?.compliance_score
+                      ?? 0
+                    ) : 0,
+                    total: 12,
+                    satisfied_count: frameworks.find(f => f.framework_id === 'eu-ai-act')?.satisfied_count ?? 0,
+                    partial_count:   frameworks.find(f => f.framework_id === 'eu-ai-act')?.partial_count ?? 0,
+                    gaps_count:      frameworks.find(f => f.framework_id === 'eu-ai-act')?.gaps_count ?? 0,
+                    satisfied: [], partial: [], gaps: [],
+                  }}
+                  selected={selectedFw === 'eu-ai-act'}
+                  onClick={() => setSelectedFw(selectedFw === 'eu-ai-act' ? null : 'eu-ai-act')}
+                />
               )}
+              {filtered
+                .filter(fw => fw.framework_id !== 'eu-ai-act')
+                .map(fw => (
+                  <CountryCard
+                    key={fw.framework_id}
+                    fw={fw}
+                    selected={selectedFw === fw.framework_id}
+                    onClick={() => setSelectedFw(selectedFw === fw.framework_id ? null : fw.framework_id)}
+                  />
+                ))
+              }
             </div>
-          </div>
+          )}
 
-          {/* ── NIST AI RMF ── */}
-          <div style={{
-            borderRadius: 16, border: '1px solid var(--border)',
-            background: 'var(--bg-card)', marginBottom: 24, overflow: 'hidden',
-          }}>
-            <div style={{
-              padding: '14px 20px',
-              borderBottom: '1px solid var(--border)',
-              background: 'var(--bg-elevated)',
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              <ShieldCheck size={15} style={{ color: 'var(--purple)' }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>NIST AI RMF 1.0 — Core Functions</span>
-              {nist && (
-                <span style={{
-                  marginLeft: 'auto', fontSize: 10, fontWeight: 700,
-                  padding: '2px 8px', borderRadius: 5,
-                  background: 'var(--accent-muted)', color: overallRiskColor,
-                  border: `1px solid var(--accent-border)`,
-                }}>
-                  Overall: {nist.overall_risk_level}
-                </span>
-              )}
-            </div>
-
-            <div style={{ padding: 16 }}>
-              {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                  {[0, 1, 2, 3].map(i => <Skeleton key={i} h={180} />)}
-                </div>
-              ) : nist ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                  {(Object.entries(nist.functions) as [string, NistRmfFunctionDetail][]).map(([fn, detail]) => (
-                    <NistCard key={fn} fn={fn} detail={detail} />
-                  ))}
-                </div>
+          {/* ── Detail panel ── */}
+          {selectedFw && (
+            <div style={{ marginBottom: 20 }}>
+              {isEu ? (
+                <EuAiActDetail systemId={effectiveId} />
+              ) : selectedFramework ? (
+                <FrameworkDetail fw={selectedFramework} />
               ) : null}
             </div>
-          </div>
-
-          {/* ── Notes ── */}
-          {eu?.notes && eu.notes.length > 0 && (
-            <div style={{
-              borderRadius: 12, border: '1px solid var(--border)',
-              background: 'var(--bg-card)', padding: '14px 18px',
-              display: 'flex', gap: 10, alignItems: 'flex-start',
-            }}>
-              <Info size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>Notes</div>
-                {eu.notes.map((n, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 2 }}>
-                    • {n}
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
 
-          {/* ── Critical findings alert ── */}
-          {(eu?.critical_findings?.length ?? 0) > 0 && (
-            <div style={{
-              marginTop: 16, borderRadius: 12,
-              border: '1px solid var(--danger-border)',
-              background: 'var(--danger-muted)', padding: '14px 18px',
-              display: 'flex', gap: 10, alignItems: 'flex-start',
-            }}>
-              <AlertTriangle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }} />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
-                  {eu!.critical_findings.length} Critical Finding{eu!.critical_findings.length > 1 ? 's' : ''} Blocking Compliance
-                </div>
-                {eu!.critical_findings.map(f => (
-                  <div key={f.id} style={{ fontSize: 11, color: 'var(--danger)', opacity: 0.85, lineHeight: 1.5 }}>
-                    • {f.title}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* ── NIST AI RMF ── */}
+          <NistSection systemId={effectiveId} />
         </>
       )}
     </PageShell>

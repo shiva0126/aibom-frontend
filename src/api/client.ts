@@ -85,10 +85,47 @@ export interface AttackPath {
   created_at: string;
 }
 
-export interface EuAiActRequirement {
+export interface ComplianceRequirement {
   id: string;
   article: string;
   requirement: string;
+  concerns?: string[];
+  auto?: boolean;
+}
+
+export interface EuAiActRequirement extends ComplianceRequirement {}
+
+export interface FrameworkResult {
+  framework_id: string;
+  name: string;
+  full_name: string;
+  authority: string;
+  country: string;
+  region: string;
+  effective: string;
+  scope: string;
+  penalty: string;
+  compliance_score: number;
+  total: number;
+  satisfied_count: number;
+  partial_count: number;
+  gaps_count: number;
+  satisfied: ComplianceRequirement[];
+  partial: ComplianceRequirement[];
+  gaps: ComplianceRequirement[];
+}
+
+export interface GlobalCompliance {
+  system_id: string;
+  system_name: string;
+  assessed_at: string;
+  global_score: number;
+  region_scores: Record<string, number>;
+  frameworks_count: number;
+  open_findings_count: number;
+  severity_breakdown: Record<string, number>;
+  snapshot_version: number | null;
+  frameworks: FrameworkResult[];
 }
 
 export interface EuAiActCompliance {
@@ -157,6 +194,7 @@ export const api = {
   supplyChainFindings: () => get<Finding[]>('/api/v1/supply-chain/findings'),
   euAiAct: (systemId: string) => get<EuAiActCompliance>(`/api/v1/systems/${systemId}/compliance/eu-ai-act`),
   nistRmf: (systemId: string) => get<NistRmfCompliance>(`/api/v1/systems/${systemId}/compliance/nist-ai-rmf`),
+  globalCompliance: (systemId: string) => get<GlobalCompliance>(`/api/v1/systems/${systemId}/compliance/global`),
   webhooks: () => get<Webhook[]>('/api/v1/webhooks'),
   createWebhook: (body: WebhookCreate) => post<Webhook>('/api/v1/webhooks', body),
   deleteWebhook: (id: string) => del(`/api/v1/webhooks/${id}`),
