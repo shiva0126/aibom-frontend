@@ -3,6 +3,7 @@ import { api } from './client';
 import type {
   PlatformStats, Finding, AISystem, AttackPath, Snapshot,
   EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance,
+  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage,
 } from './client';
 
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
@@ -46,5 +47,15 @@ export const useEuAiAct = (systemId: string) => useQuery<EuAiActCompliance>(() =
 export const useNistRmf = (systemId: string) => useQuery<NistRmfCompliance>(() => api.nistRmf(systemId), [systemId]);
 export const useGlobalCompliance = (systemId: string) => useQuery<GlobalCompliance>(() => api.globalCompliance(systemId), [systemId]);
 export const useWebhooks = () => useQuery<Webhook[]>(api.webhooks);
+export const useAgents = () => useQuery<Agent[]>(api.agents);
+export const useMcpServers = () => useQuery<McpServer[]>(api.mcpServers);
+export const useRagLineage = () => useQuery<RagLineage[]>(api.ragLineage);
+export const useSupplyChainModels = () => useQuery<SupplyChainModel[]>(api.supplyChainModels);
+export const useAtlasMatrix = () => useQuery<AtlasMatrix>(api.atlasMatrix);
+export const useAtlasCoverage = (systemId: string) => useQuery<AtlasCoverage>(() => api.atlasCoverage(systemId), [systemId]);
 
-export type { PlatformStats, Finding, AISystem, AttackPath, Snapshot, EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance };
+export type {
+  PlatformStats, Finding, AISystem, AttackPath, Snapshot,
+  EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance,
+  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage,
+};

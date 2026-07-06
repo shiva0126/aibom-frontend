@@ -72,17 +72,117 @@ export interface Snapshot {
   evidence_cutoff_at: string;
 }
 
+export interface AtlasTechniqueRef {
+  id: string;
+  name: string | null;
+}
+
 export interface AttackPath {
   id: string;
   system_id: string;
-  snapshot_id: string;
-  path_type: string;
+  snapshot_id: string | null;
+  path_family: string;
   severity: string;
-  title: string;
-  description: string;
-  path_json: Record<string, unknown>;
-  status: string;
+  path_summary: string;
+  path_nodes: unknown[];
+  evidence_threshold_met: boolean;
+  inferred_evidence_used: boolean;
+  stale_evidence_used: boolean;
   created_at: string;
+  atlas_techniques?: AtlasTechniqueRef[];
+}
+
+export interface Agent {
+  id: string;
+  canonical_id: string;
+  display_name: string;
+  provider: string | null;
+  region: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface McpServer {
+  id: string;
+  canonical_id: string;
+  display_name: string;
+  metadata: Record<string, unknown>;
+  [k: string]: unknown;
+}
+
+export interface RagLineage {
+  knowledge_base_id: string;
+  canonical_id: string;
+  display_name: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface SupplyChainModel {
+  id: string;
+  canonical_id: string;
+  display_name: string;
+  entity_type: string;
+  provider: string | null;
+  region: string | null;
+  has_digest: boolean;
+  approval_status: string | null;
+  evaluation_date: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AtlasMatrixTechnique {
+  id: string;
+  name: string;
+  detectable: boolean;
+}
+
+export interface AtlasMatrixTactic {
+  id: string;
+  name: string;
+  description: string;
+  techniques: AtlasMatrixTechnique[];
+  detectable_count: number;
+}
+
+export interface AtlasMatrix {
+  atlas_version: string;
+  tactics: AtlasMatrixTactic[];
+  detectable_technique_count: number;
+  total_technique_count: number;
+}
+
+export interface AtlasCoverageEvidence {
+  kind: 'finding' | 'attack_path';
+  type: string;
+  id: string;
+  title: string;
+  severity: string;
+}
+
+export interface AtlasCoverageTechnique {
+  id: string;
+  name: string | null;
+  tactics: string[];
+  evidence_count: number;
+  evidence: AtlasCoverageEvidence[];
+}
+
+export interface AtlasCoverageTactic {
+  id: string;
+  name: string;
+  observed: boolean;
+  technique_ids: string[];
+  technique_count: number;
+}
+
+export interface AtlasCoverage {
+  system_id: string;
+  system_name: string;
+  atlas_version: string;
+  observed_tactic_count: number;
+  total_tactic_count: number;
+  observed_technique_count: number;
+  tactics: AtlasCoverageTactic[];
+  techniques: AtlasCoverageTechnique[];
 }
 
 export interface ComplianceRequirement {
@@ -199,4 +299,10 @@ export const api = {
   createWebhook: (body: WebhookCreate) => post<Webhook>('/api/v1/webhooks', body),
   deleteWebhook: (id: string) => del(`/api/v1/webhooks/${id}`),
   exportSpdx: (snapshotId: string) => get<Record<string, unknown>>(`/api/v1/snapshots/${snapshotId}/export/spdx`),
+  agents: () => get<Agent[]>('/api/v1/agents'),
+  mcpServers: () => get<McpServer[]>('/api/v1/mcp-servers'),
+  ragLineage: () => get<RagLineage[]>('/api/v1/rag/lineage'),
+  supplyChainModels: () => get<SupplyChainModel[]>('/api/v1/supply-chain/models'),
+  atlasMatrix: () => get<AtlasMatrix>('/api/v1/atlas/matrix'),
+  atlasCoverage: (systemId: string) => get<AtlasCoverage>(`/api/v1/systems/${systemId}/atlas/coverage`),
 };

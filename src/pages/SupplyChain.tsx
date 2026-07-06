@@ -1,94 +1,120 @@
-import { GitBranch, Settings, Package, FileCode, UploadCloud, Server, CheckCircle2, XCircle, ArrowRight, Info } from 'lucide-react';
+import { GitBranch, ShieldCheck, ShieldAlert, Package, AlertTriangle, Crosshair } from 'lucide-react';
 import PageShell from '../components/layout/PageShell';
-import { supplyChainSteps, supplyChainChecks } from '../data/mock';
+import Badge from '../components/shared/Badge';
+import { useSupplyChainModels, useSupplyChainFindings } from '../api/hooks';
 
-const stepIcons = [GitBranch, Settings, Package, FileCode, UploadCloud, Server];
+const sevColor: Record<string, string> = {
+  critical: 'var(--danger)', high: 'var(--orange)', medium: 'var(--warning)', low: 'var(--cyan)',
+};
 
 export default function SupplyChain() {
+  const { data: models, loading } = useSupplyChainModels();
+  const { data: findings } = useSupplyChainFindings();
+
+  const list = models ?? [];
+  const scFindings = findings ?? [];
+
+  const verified = list.filter(m => m.has_digest).length;
+  const approved = list.filter(m => m.approval_status === 'approved').length;
+
   return (
     <PageShell
       title="Supply Chain"
-      subtitle="Model provenance, artifact attestation, and deployment pipeline"
+      subtitle={loading ? 'Loading…' : `${list.length} model artifact${list.length !== 1 ? 's' : ''} · ${scFindings.length} finding${scFindings.length !== 1 ? 's' : ''} (live)`}
     >
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Summary */}
+      <div className="grid grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Models Tracked',       value: 246, sub: 'across all systems'       },
-          { label: 'Provenance Verified',   value: 198, sub: '81% coverage'             },
-          { label: 'Policy Violations',     value: 12,  sub: '3 critical'               },
-        ].map(s => (
-          <div key={s.label} className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div className="text-2xl font-bold mb-0.5" style={{ color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>{s.value}</div>
-            <div className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-secondary)' }}>{s.label}</div>
-            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.sub}</div>
-          </div>
-        ))}
+          { label: 'Model Artifacts', value: list.length, color: 'var(--accent)', icon: Package },
+          { label: 'Digest Verified', value: verified, color: 'var(--success)', icon: ShieldCheck },
+          { label: 'Approved', value: approved, color: 'var(--cyan)', icon: ShieldCheck },
+          { label: 'Open Findings', value: scFindings.length, color: scFindings.length > 0 ? 'var(--danger)' : 'var(--text-muted)', icon: ShieldAlert },
+        ].map(c => {
+          const Icon = c.icon;
+          return (
+            <div key={c.label} className="rounded-xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1.5 mb-1.5"><Icon size={12} style={{ color: c.color }} /><span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{c.label}</span></div>
+              <div className="text-2xl font-bold" style={{ color: c.color, letterSpacing: '-0.5px' }}>{c.value}</div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Full pipeline card */}
-      <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2 mb-5">
-          <Info size={14} style={{ color: 'var(--accent)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Fraud Detection Model Pipeline</span>
-          <span className="text-xs px-2 py-0.5 rounded-full ml-auto" style={{ background: 'var(--danger-muted)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
-            1 Failure
-          </span>
+      {/* Models table */}
+      <div className="flex items-center gap-2 mb-3">
+        <GitBranch size={14} style={{ color: 'var(--accent)' }} />
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Model Artifacts</h2>
+      </div>
+      {!loading && list.length === 0 ? (
+        <div className="rounded-xl py-10 text-center text-xs mb-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>No model artifacts discovered.</div>
+      ) : (
+        <div className="rounded-xl overflow-hidden mb-6" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+                {['Model', 'Type', 'Provider', 'Region', 'Digest', 'Approval', 'Last Eval'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((m, i) => (
+                <tr key={m.id} className="transition-colors"
+                  style={{ borderBottom: i < list.length - 1 ? '1px solid var(--border-muted)' : 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td className="px-4 py-3">
+                    <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{m.display_name}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{m.entity_type}</td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{m.provider ?? '—'}</td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{m.region ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {m.has_digest
+                      ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--success-muted)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>verified</span>
+                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--danger-muted)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>none</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{
+                      background: m.approval_status === 'approved' ? 'var(--success-muted)' : 'var(--warning-muted)',
+                      color: m.approval_status === 'approved' ? 'var(--success)' : 'var(--warning)',
+                      border: `1px solid ${m.approval_status === 'approved' ? 'var(--success-border)' : 'var(--warning-border)'}`,
+                    }}>{m.approval_status ?? 'unknown'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{m.evaluation_date ? new Date(m.evaluation_date).toLocaleDateString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
 
-        {/* Pipeline horizontal */}
-        <div className="flex items-end gap-3 mb-6">
-          {supplyChainSteps.map((step, i) => {
-            const Icon = stepIcons[i];
-            const fail = step.status === 'fail';
-            return (
-              <div key={i} className="flex items-center gap-3">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: fail ? 'var(--danger-muted)' : 'var(--accent-muted)',
-                      border: `1px solid ${fail ? 'var(--danger-border)' : 'var(--accent-border)'}`,
-                    }}>
-                    <Icon size={20} style={{ color: fail ? 'var(--danger)' : 'var(--accent)' }} />
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>{step.label}</div>
-                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{step.sub}</div>
-                  </div>
-                  {fail
-                    ? <XCircle size={16} style={{ color: 'var(--danger)' }} />
-                    : <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-                  }
-                </div>
-                {i < supplyChainSteps.length - 1 && (
-                  <ArrowRight size={16} className="mb-8" style={{ color: 'var(--border-strong)' }} />
+      {/* Supply chain findings */}
+      {scFindings.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} style={{ color: 'var(--danger)' }} />
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Supply Chain Findings</h2>
+          </div>
+          <div className="space-y-2">
+            {scFindings.map(f => (
+              <div key={f.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: sevColor[f.severity] ?? 'var(--text-muted)', flexShrink: 0 }} />
+                <span className="text-xs flex-1" style={{ color: 'var(--text-primary)' }}>{f.title}</span>
+                {f.atlas_technique && (
+                  <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mono" style={{ background: 'var(--purple-muted)', color: 'var(--purple)', border: '1px solid var(--purple-border)' }}>
+                    <Crosshair size={9} />{f.atlas_technique}
+                  </span>
                 )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Checks grid */}
-        <div style={{ borderTop: '1px solid var(--border)' }} className="pt-4">
-          <div className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>Attestation & Checks</div>
-          <div className="grid grid-cols-6 gap-3">
-            {supplyChainChecks.map(c => (
-              <div key={c.label}
-                className="rounded-lg p-3 flex flex-col items-center gap-1.5"
-                style={{
-                  background: c.status === 'Failed' ? 'var(--danger-muted)' : 'var(--success-muted)',
-                  border: `1px solid ${c.status === 'Failed' ? 'var(--danger-border)' : 'var(--success-border)'}`,
-                }}>
-                {c.status === 'Passed'
-                  ? <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-                  : <XCircle size={16} style={{ color: 'var(--danger)' }} />
-                }
-                <span className="text-[10px] font-medium text-center" style={{ color: c.status === 'Failed' ? 'var(--danger)' : 'var(--success)' }}>{c.label}</span>
-                <span className="text-[10px]" style={{ color: c.status === 'Failed' ? 'var(--danger)' : 'var(--success)' }}>{c.status}</span>
+                {f.owasp_llm_id && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded mono" style={{ background: 'var(--orange-muted)', color: 'var(--orange)', border: '1px solid var(--orange-border)' }}>{f.owasp_llm_id}</span>
+                )}
+                <Badge label={f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} size="sm" />
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </PageShell>
   );
 }

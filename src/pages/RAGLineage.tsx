@@ -1,91 +1,77 @@
-import { Database, ArrowDown, Brain, LayoutGrid, Bot, AlertTriangle } from 'lucide-react';
+import { Database, AlertTriangle, CheckCircle2, Crosshair } from 'lucide-react';
 import PageShell from '../components/layout/PageShell';
 import Badge from '../components/shared/Badge';
-import { ragLineages } from '../data/mock';
+import { useRagLineage, useRagFindings } from '../api/hooks';
 
-const stageIcons = [Database, ArrowDown, Brain, LayoutGrid, Bot];
-const stageColors = ['var(--accent)', 'var(--text-muted)', 'var(--purple)', 'var(--warning)', 'var(--success)'];
-const stageLabels = ['Source', 'Pipeline', 'Embedding', 'Index', 'Consumer'];
-
-const classColors: Record<string, string> = {
-  PII:          'var(--danger)',
-  Confidential: 'var(--orange)',
-  Internal:     'var(--warning)',
-  Public:       'var(--success)',
+const sevColor: Record<string, string> = {
+  critical: 'var(--danger)', high: 'var(--orange)', medium: 'var(--warning)', low: 'var(--cyan)',
 };
 
 export default function RAGLineage() {
+  const { data: lineage, loading } = useRagLineage();
+  const { data: ragFindings } = useRagFindings();
+
+  const kbs = lineage ?? [];
+  const findings = ragFindings ?? [];
+
   return (
     <PageShell
       title="RAG Lineage"
-      subtitle="End-to-end data flow from source to AI consumer"
+      subtitle={loading ? 'Loading…' : `${kbs.length} knowledge base${kbs.length !== 1 ? 's' : ''} · ${findings.length} lineage finding${findings.length !== 1 ? 's' : ''} (live)`}
     >
-      <div className="space-y-4">
-        {ragLineages.map(rag => (
-          <div key={rag.id} className="rounded-xl p-5"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{rag.name}</div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{rag.system}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {rag.dataClass in classColors && (
-                  <div className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg"
-                    style={{
-                      background: classColors[rag.dataClass] + '15',
-                      color: classColors[rag.dataClass],
-                      border: `1px solid ${classColors[rag.dataClass]}30`,
-                    }}>
-                    <AlertTriangle size={11} />
-                    {rag.dataClass}
+      {!loading && kbs.length === 0 ? (
+        <div className="rounded-xl py-12 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <Database size={28} style={{ color: 'var(--text-muted)', margin: '0 auto 10px', display: 'block' }} />
+          <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>No RAG knowledge bases discovered</div>
+          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Ingest a system with a knowledge base to see its lineage.</div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {kbs.map(kb => {
+            // findings that reference this KB entity
+            const kbFindings = findings.filter(f => f.entity_id === kb.knowledge_base_id);
+            const clean = kbFindings.length === 0;
+            return (
+              <div key={kb.knowledge_base_id} className="rounded-xl p-5"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)' }}>
+                      <Database size={16} style={{ color: 'var(--accent)' }} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{kb.display_name}</div>
+                      <div className="text-[10px] mono mt-0.5" style={{ color: 'var(--text-muted)' }}>{kb.canonical_id}</div>
+                    </div>
+                  </div>
+                  {clean
+                    ? <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg" style={{ background: 'var(--success-muted)', color: 'var(--success)', border: '1px solid var(--success-border)' }}><CheckCircle2 size={12} /> No issues</span>
+                    : <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg" style={{ background: 'var(--danger-muted)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}><AlertTriangle size={12} /> {kbFindings.length} finding{kbFindings.length !== 1 ? 's' : ''}</span>}
+                </div>
+
+                {/* Lineage findings for this KB */}
+                {kbFindings.length > 0 && (
+                  <div className="space-y-2" style={{ borderTop: '1px solid var(--border-muted)', paddingTop: 12 }}>
+                    {kbFindings.map(f => (
+                      <div key={f.id} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: sevColor[f.severity] ?? 'var(--text-muted)', flexShrink: 0 }} />
+                        <span className="text-xs flex-1" style={{ color: 'var(--text-primary)' }}>{f.title}</span>
+                        {f.atlas_technique && (
+                          <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mono" style={{ background: 'var(--purple-muted)', color: 'var(--purple)', border: '1px solid var(--purple-border)' }}>
+                            <Crosshair size={9} />{f.atlas_technique}
+                          </span>
+                        )}
+                        <Badge label={f.severity.charAt(0).toUpperCase() + f.severity.slice(1)} size="sm" />
+                      </div>
+                    ))}
                   </div>
                 )}
-                <Badge label={rag.status} />
               </div>
-            </div>
-
-            {/* Pipeline stages */}
-            <div className="flex items-center gap-0">
-              {[rag.source, rag.pipeline, rag.embedding, rag.index, rag.consumer].map((detail, i) => {
-                const Icon = stageIcons[i];
-                const col = stageColors[i];
-                const isLast = i === 4;
-                return (
-                  <div key={i} className="flex items-center">
-                    <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl min-w-[140px]"
-                      style={{
-                        background: col + '08',
-                        border: `1px solid ${col}20`,
-                      }}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: col + '20' }}>
-                        <Icon size={15} style={{ color: col }} />
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide mb-0.5"
-                          style={{ color: col }}>{stageLabels[i]}</div>
-                        <div className="text-[11px] font-medium" style={{ color: 'var(--text-primary)' }}>{detail}</div>
-                      </div>
-                    </div>
-                    {!isLast && (
-                      <div className="flex items-center px-1">
-                        <div className="w-6 h-px" style={{ background: 'var(--border-strong)' }} />
-                        <div className="w-0 h-0" style={{
-                          borderTop: '3px solid transparent',
-                          borderBottom: '3px solid transparent',
-                          borderLeft: `4px solid var(--border-strong)`,
-                        }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </PageShell>
   );
 }

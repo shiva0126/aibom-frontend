@@ -1,10 +1,24 @@
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { recentFindings } from '../../data/mock';
 import Badge from '../shared/Badge';
 import Card from '../shared/Card';
+import { useFindings } from '../../api/hooks';
 
 export default function RecentFindings() {
+  const { data: live } = useFindings();
+  const recentFindings = (live ?? [])
+    .filter(f => f.status === 'open')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 6)
+    .map(f => ({
+      id: f.id.slice(0, 8).toUpperCase(),
+      finding: f.title,
+      system: f.system_id.slice(0, 8),
+      severity: f.severity.charAt(0).toUpperCase() + f.severity.slice(1),
+      firstDetected: new Date(f.created_at).toLocaleDateString(),
+      status: f.status,
+    }));
+
   return (
     <Card padding={false}>
       <div className="flex items-center justify-between px-4 py-3.5"

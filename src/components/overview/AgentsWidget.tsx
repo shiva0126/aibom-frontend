@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Bot, Wrench, Server, ArrowUpRight, Info } from 'lucide-react';
-import { overviewAgents } from '../../data/mock';
-import Badge from '../shared/Badge';
+import { Bot, ArrowUpRight, Info } from 'lucide-react';
 import Card from '../shared/Card';
+import { useAgents } from '../../api/hooks';
 
 export default function AgentsWidget() {
+  const { data: agents, loading } = useAgents();
+  const list = (agents ?? []).slice(0, 4);
+
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
@@ -17,36 +19,27 @@ export default function AgentsWidget() {
         </Link>
       </div>
 
-      <div className="space-y-2">
-        {overviewAgents.map((agent) => (
-          <div key={agent.name} className="rounded-lg p-3"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--purple-muted)', border: '1px solid var(--purple-border)' }}>
-                <Bot size={13} style={{ color: 'var(--purple)' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{agent.name}</div>
-                <div className="text-[10px] mono" style={{ color: 'var(--text-muted)' }}>{agent.version}</div>
-              </div>
-              <Badge label={agent.status} size="sm" dot />
-            </div>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                <Wrench size={10} />
-                <span>Tools</span>
-                <span className="font-semibold ml-1" style={{ color: 'var(--text-primary)' }}>{agent.tools}</span>
-              </div>
-              <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                <Server size={10} />
-                <span>MCP</span>
-                <span className="font-semibold ml-1" style={{ color: 'var(--text-primary)' }}>{agent.mcpServers}</span>
+      {!loading && list.length === 0 ? (
+        <div className="py-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No agents discovered.</div>
+      ) : (
+        <div className="space-y-2">
+          {list.map((agent) => (
+            <div key={agent.id} className="rounded-lg p-3"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--purple-muted)', border: '1px solid var(--purple-border)' }}>
+                  <Bot size={13} style={{ color: 'var(--purple)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{agent.display_name}</div>
+                  <div className="text-[10px] mono truncate" style={{ color: 'var(--text-muted)' }}>{agent.provider ?? 'agent'}{agent.region ? ` · ${agent.region}` : ''}</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

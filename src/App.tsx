@@ -15,6 +15,7 @@ import Reports     from './pages/Reports';
 import Settings    from './pages/Settings';
 import Compliance  from './pages/Compliance';
 import Webhooks    from './pages/Webhooks';
+import AtlasMatrix from './pages/AtlasMatrix';
 
 export default function App() {
   return (
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="/settings"     element={<Settings />}     />
                 <Route path="/compliance"   element={<Compliance />}   />
                 <Route path="/webhooks"     element={<Webhooks />}     />
+                <Route path="/atlas"        element={<AtlasMatrix />}  />
               </Routes>
             </main>
           </div>
