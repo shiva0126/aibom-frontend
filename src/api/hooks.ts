@@ -3,7 +3,7 @@ import { api } from './client';
 import type {
   PlatformStats, Finding, AISystem, AttackPath, Snapshot,
   EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance,
-  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage,
+  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage, SystemGraph,
 } from './client';
 
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
@@ -53,9 +53,10 @@ export const useRagLineage = () => useQuery<RagLineage[]>(api.ragLineage);
 export const useSupplyChainModels = () => useQuery<SupplyChainModel[]>(api.supplyChainModels);
 export const useAtlasMatrix = () => useQuery<AtlasMatrix>(api.atlasMatrix);
 export const useAtlasCoverage = (systemId: string) => useQuery<AtlasCoverage>(() => api.atlasCoverage(systemId), [systemId]);
+export const useSystemGraph = (systemId: string) => useQuery<SystemGraph>(() => api.systemGraph(systemId), [systemId]);
 
 export type {
   PlatformStats, Finding, AISystem, AttackPath, Snapshot,
   EuAiActCompliance, NistRmfCompliance, Webhook, GlobalCompliance,
-  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage,
+  Agent, McpServer, RagLineage, SupplyChainModel, AtlasMatrix, AtlasCoverage, SystemGraph,
 };

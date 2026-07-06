@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { Logo } from '../brand/Logo';
 import {
   LayoutDashboard, Server, FileText, GitBranch, Bot,
   Network, AlertTriangle, Route, Plug, BarChart2,
-  Settings, Shield, TrendingUp, ChevronDown, Scale, Webhook, Crosshair,
+  Settings, ChevronDown, Scale, Webhook, Crosshair,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,9 +42,6 @@ const groups: { label?: string; items: { to: string; icon: LucideIcon; label: st
     ],
   },
 ];
-
-const sparkData = [58, 61, 59, 64, 67, 65, 70, 72];
-const sparkMax  = Math.max(...sparkData);
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
   const [hovered, setHovered] = useState(false);
@@ -109,35 +107,10 @@ export default function Sidebar() {
         style={{
           padding: '18px 16px 16px',
           borderBottom: '1px solid var(--border)',
-          background: 'linear-gradient(160deg, rgba(91,127,255,0.06) 0%, transparent 60%)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: 'linear-gradient(135deg, #5b7fff 0%, #7b6fff 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 0 1px rgba(91,127,255,0.4), 0 4px 12px rgba(91,127,255,0.3)',
-              flexShrink: 0,
-            }}
-          >
-            <Shield size={15} color="white" />
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.2px', lineHeight: 1 }}>
-              AIBOM
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>
-              AI Security Platform
-            </div>
-          </div>
-        </div>
+        <Logo size={32} />
       </div>
 
       {/* ── Navigation ── */}
@@ -170,76 +143,6 @@ export default function Sidebar() {
         {/* Settings */}
         <NavItem to="/settings" icon={Settings} label="Settings" />
       </nav>
-
-      {/* ── Security Posture Widget ── */}
-      <div
-        style={{
-          margin: '0 10px 8px',
-          padding: '12px 14px',
-          borderRadius: 12,
-          background: 'var(--bg-elevated)',
-          border: '1px solid var(--border)',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Shield size={11} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>
-              Security Posture
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              padding: '2px 6px',
-              borderRadius: 4,
-              background: 'var(--success-muted)',
-              color: 'var(--success)',
-              border: '1px solid var(--success-border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 3,
-            }}
-          >
-            <TrendingUp size={9} />
-            +6
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-          <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-1px', lineHeight: 1 }}>
-            72
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/100</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', marginLeft: 4 }}>Good</span>
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ height: 3, borderRadius: 99, background: 'var(--border)', overflow: 'hidden', marginBottom: 8 }}>
-          <div
-            style={{
-              height: '100%',
-              width: '72%',
-              borderRadius: 99,
-              background: 'linear-gradient(90deg, var(--accent) 0%, var(--success) 100%)',
-            }}
-          />
-        </div>
-
-        {/* Sparkline */}
-        <svg viewBox="0 0 100 20" style={{ width: '100%', height: 20, display: 'block' }}>
-          <polyline
-            points={sparkData.map((v, i) => `${i * (100 / (sparkData.length - 1))},${19 - (v / sparkMax) * 17}`).join(' ')}
-            fill="none"
-            stroke="var(--chart-line)"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        </svg>
-      </div>
 
       {/* ── User Profile ── */}
       <UserProfile />

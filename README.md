@@ -1,6 +1,8 @@
-# AIBOM — AI Security & Compliance Platform
+# AISPM — AI Security Posture Management
 
-A production-grade dashboard for AI Bill of Materials (AI-BOM) management, security finding detection, and global regulatory compliance — built with React, TypeScript, and Vite.
+A production-grade AI Security Posture Management platform: AI Bill of Materials (AI-BOM), evidence-based security finding detection, MITRE ATLAS coverage, attack-path analysis, and global regulatory compliance — built with React, TypeScript, and Vite.
+
+> Brand mark: a geometric **knight (horse)** — strategy and defense. Single indigo accent, neutral-slate surfaces, status colors reserved for severity/state.
 
 ---
 

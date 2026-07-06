@@ -101,6 +101,30 @@ export interface Agent {
   metadata: Record<string, unknown>;
 }
 
+export interface GraphNode {
+  id: string;
+  canonical_id: string;
+  entity_type: string;
+  display_name: string;
+  provider: string | null;
+  region: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  id: string;
+  from: string;
+  to: string;
+  type: string;
+  evidence_state: string;
+}
+
+export interface SystemGraph {
+  system_id: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 export interface McpServer {
   id: string;
   canonical_id: string;
@@ -305,4 +329,5 @@ export const api = {
   supplyChainModels: () => get<SupplyChainModel[]>('/api/v1/supply-chain/models'),
   atlasMatrix: () => get<AtlasMatrix>('/api/v1/atlas/matrix'),
   atlasCoverage: (systemId: string) => get<AtlasCoverage>(`/api/v1/systems/${systemId}/atlas/coverage`),
+  systemGraph: (systemId: string) => get<SystemGraph>(`/api/v1/systems/${systemId}/graph`),
 };

@@ -1,121 +1,61 @@
-import { Cpu, Brain, Bot, Wrench, ShieldAlert, FileStack } from 'lucide-react';
-import { overviewStats } from '../../data/mock';
+import { Server, Radio, AlertTriangle, ShieldAlert, Route, CircleCheck, type LucideIcon } from 'lucide-react';
 import { useStats } from '../../api/hooks';
 
-const icons  = [Cpu, Brain, Bot, Wrench, ShieldAlert, FileStack];
-const colors = [
-  { icon: 'var(--accent)',  glow: 'rgba(91,127,255,0.12)'  },
-  { icon: 'var(--success)', glow: 'rgba(30,199,106,0.12)'  },
-  { icon: 'var(--purple)',  glow: 'rgba(169,124,248,0.12)' },
-  { icon: 'var(--cyan)',    glow: 'rgba(29,212,244,0.12)'  },
-  { icon: 'var(--danger)',  glow: 'rgba(240,61,61,0.12)'   },
-  { icon: 'var(--warning)', glow: 'rgba(244,162,30,0.12)'  },
-];
+interface Stat {
+  label: string;
+  value: number | string;
+  icon: LucideIcon;
+  /** semantic color only when the value carries risk meaning */
+  tone?: 'danger' | 'warning' | 'success' | 'neutral';
+  active?: boolean; // value>0 lights the tone
+}
 
 export default function StatsRow() {
-  const { data: live } = useStats();
+  const { data: s } = useStats();
 
-  const stats = live
-    ? [
-        { label: 'AI Systems',       value: live.ai_systems,        delta: '',   trend: 'up',   icon: 'systems'   },
-        { label: 'Observations',     value: live.total_observations, delta: '',   trend: 'up',   icon: 'models'    },
-        { label: 'Open Findings',    value: live.open_findings,      delta: '',   trend: 'down', icon: 'findings'  },
-        { label: 'Critical',         value: live.critical_findings,  delta: '',   trend: 'down', icon: 'findings'  },
-        { label: 'Attack Paths',     value: live.attack_paths,       delta: '',   trend: 'down', icon: 'agents'    },
-        { label: 'Live Platform',    value: 1,                       delta: '✓',  trend: 'up',   icon: 'snapshots' },
-      ]
-    : overviewStats;
+  const stats: Stat[] = [
+    { label: 'AI Systems',    value: s?.ai_systems ?? '—',         icon: Server },
+    { label: 'Observations',  value: s?.total_observations ?? '—', icon: Radio },
+    { label: 'Open Findings', value: s?.open_findings ?? '—',      icon: AlertTriangle, tone: 'warning', active: (s?.open_findings ?? 0) > 0 },
+    { label: 'Critical',      value: s?.critical_findings ?? '—',  icon: ShieldAlert,   tone: 'danger',  active: (s?.critical_findings ?? 0) > 0 },
+    { label: 'Attack Paths',  value: s?.attack_paths ?? '—',       icon: Route,         tone: 'danger',  active: (s?.attack_paths ?? 0) > 0 },
+    { label: 'Platform',      value: s ? 'Live' : '—',             icon: CircleCheck,   tone: 'success', active: !!s },
+  ];
+
+  const toneColor = (t?: Stat['tone']) =>
+    t === 'danger' ? 'var(--danger)' : t === 'warning' ? 'var(--warning)' : t === 'success' ? 'var(--success)' : 'var(--accent)';
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12 }}>
-      {stats.map((s, i) => {
-        const Icon  = icons[i];
-        const color = colors[i];
-        const isDown = s.trend === 'down';
-
+      {stats.map((st) => {
+        const Icon = st.icon;
+        const lit = st.active;
+        const c = lit ? toneColor(st.tone) : 'var(--text-muted)';
         return (
           <div
-            key={s.label}
+            key={st.label}
             style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '16px',
-              cursor: 'default',
-              transition: 'border-color 0.15s ease, transform 0.15s ease',
-              position: 'relative',
-              overflow: 'hidden',
+              background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12,
+              padding: '15px 16px', transition: 'border-color 0.15s ease',
             }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)';
-              (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
-              (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-            }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border)')}
           >
-            {/* Subtle top glow */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
-                background: `linear-gradient(90deg, transparent, ${color.icon}40, transparent)`,
-              }}
-            />
-
-            {/* Icon + delta row */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 9,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: color.glow,
-                  border: `1px solid ${color.icon}25`,
-                }}
-              >
-                <Icon size={16} style={{ color: color.icon }} />
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: isDown ? 'var(--danger)' : 'var(--success)',
-                  background: isDown ? 'var(--danger-muted)' : 'var(--success-muted)',
-                  border: `1px solid ${isDown ? 'var(--danger-border)' : 'var(--success-border)'}`,
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                }}
-              >
-                ↑ {s.delta}
-              </span>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, marginBottom: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: lit ? `color-mix(in srgb, ${c} 12%, transparent)` : 'var(--bg-elevated)',
+              border: `1px solid ${lit ? `color-mix(in srgb, ${c} 30%, transparent)` : 'var(--border)'}`,
+            }}>
+              <Icon size={15} style={{ color: c }} />
             </div>
-
-            {/* Value */}
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.5px',
-                lineHeight: 1,
-                marginBottom: 4,
-              }}
-            >
-              {s.value}
+            <div style={{
+              fontSize: 26, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1, marginBottom: 5,
+              color: lit && st.tone !== 'success' ? c : 'var(--text-primary)',
+            }}>
+              {st.value}
             </div>
-
-            {/* Label */}
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-              {s.label}
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{st.label}</div>
           </div>
         );
       })}
