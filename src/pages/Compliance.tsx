@@ -35,7 +35,7 @@ function MiniRing({ score, size = 44 }: { score: number; size?: number }) {
   const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * Math.min(score / 100, 1);
-  const color = score >= 70 ? '#1ec76a' : score >= 45 ? '#f4a21e' : '#f03d3d';
+  const color = score >= 70 ? 'var(--success)' : score >= 45 ? 'var(--warning)' : 'var(--danger)';
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />

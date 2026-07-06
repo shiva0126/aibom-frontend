@@ -151,7 +151,7 @@ export default function Header() {
             gap: 5,
             padding: '5px 10px',
             borderRadius: 8,
-            background: 'linear-gradient(135deg, rgba(91,127,255,0.15) 0%, rgba(123,111,255,0.15) 100%)',
+            background: 'var(--accent-muted)',
             border: '1px solid var(--accent-border)',
             fontSize: 11,
             fontWeight: 600,
@@ -159,7 +159,7 @@ export default function Header() {
             cursor: 'pointer',
           }}
           onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--accent-muted)')}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(91,127,255,0.15) 0%, rgba(123,111,255,0.15) 100%)')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--accent-muted)')}
         >
           <Zap size={11} />
           Upgrade
@@ -210,7 +210,7 @@ export default function Header() {
               width: 28,
               height: 28,
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #5b7fff 0%, #7b6fff 100%)',
+              background: 'linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

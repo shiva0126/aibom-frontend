@@ -173,7 +173,7 @@ function UserProfile() {
           width: 30,
           height: 30,
           borderRadius: 8,
-          background: 'linear-gradient(135deg, #5b7fff 0%, #7b6fff 100%)',
+          background: 'linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

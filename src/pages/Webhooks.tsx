@@ -327,7 +327,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           opacity: loading ? 0.7 : 1,
           transition: 'background 0.25s ease, opacity 0.15s ease',
-          boxShadow: success ? '0 0 0 1px rgba(30,199,106,0.4), 0 4px 14px rgba(30,199,106,0.25)' : '0 0 0 1px rgba(91,127,255,0.4), 0 4px 14px rgba(91,127,255,0.25)',
+          boxShadow: success ? '0 4px 14px var(--success-border)' : '0 4px 14px var(--accent-glow)',
         }}
       >
         {success ? (
